@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="min-h-screen flex flex-col font-sans bg-[191919] text-white">
-        <nav class="w-full p-4 md:p-6 border-b border-gray-800 bg-[191919] sticky top-0 z-50">
+    <div class="min-h-screen flex flex-col font-sans bg-191919 text-white">
+        <nav class="w-full p-4 md:p-6 border-b border-gray-800 bg-191919 sticky top-0 z-50">
             <div class="max-w-4xl mx-auto flex justify-between items-center">
                 <div class="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
                     Tik<span class="text-accent">down</span>
@@ -40,14 +40,14 @@
                                     <line x1="8" x2="16" y1="12" y2="12"></line>
                                 </svg>
                             </div>
-                            <input id="tiktokUrl" type="text" placeholder="Paste TikTok link here..." class="w-full pl-12 pr-28 md:pr-32 py-3 md:py-4 bg-[252525] border border-gray-700 rounded-full focus:outline-none focus:border-accent text-white placeholder-gray-500 transition-colors shadow-lg text-sm md:text-base" value="" />
+                            <input id="tiktokUrl" type="text" placeholder="Paste TikTok link here..." class="w-full pl-12 pr-28 md:pr-32 py-3 md:py-4 bg-252525 border border-gray-700 rounded-full focus:outline-none focus:border-accent text-white placeholder-gray-500 transition-colors shadow-lg text-sm md:text-base" />
                             <button type="submit" class="absolute right-1.5 top-1.5 bottom-1.5 px-4 md:px-6 bg-accent hover:bg-accentHover text-white rounded-full font-medium transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 text-sm md:text-base">
                                 Download
                             </button>
                         </div>
                     </form>
                     
-                    <div id="resultContainer" class="mt-4 text-left"></div>
+                    <div id="resultContainer" class="mt-4"></div>
                 </div>
             </section>
 
@@ -57,32 +57,32 @@
                     <p class="faq-subtitle text-base">Common questions about using Tikdown</p>
                 </div>
                 <div class="space-y-4">
-                    <div data-aos="fade-up" class="faq-box border rounded-lg bg-[252525] overflow-hidden">
-                        <div class="faq-question w-full text-left px-4 md:px-6 py-4 font-semibold flex justify-between items-center hover:bg-[2a2a2a] transition text-sm md:text-base cursor-pointer">
+                    <div data-aos="fade-up" class="faq-box border rounded-lg bg-252525 overflow-hidden">
+                        <div class="faq-question w-full text-left px-4 md:px-6 py-4 font-semibold flex justify-between items-center hover:bg-2a2a2a transition text-sm md:text-base cursor-pointer">
                             How do I download a TikTok video without watermark?
                         </div>
                         <div class="faq-content px-4 md:px-6 text-sm md:text-base overflow-hidden transition-all duration-300 max-h-0">
                             Simply copy the link of the video from the TikTok app, paste it into the search box above, and click Download. Wait for our server to process it, then choose the 'No Watermark' option.
                         </div>
                     </div>
-                    <div data-aos="fade-up" class="faq-box border rounded-lg bg-[252525] overflow-hidden">
-                        <div class="faq-question w-full text-left px-4 md:px-6 py-4 font-semibold flex justify-between items-center hover:bg-[2a2a2a] transition text-sm md:text-base cursor-pointer">
+                    <div data-aos="fade-up" class="faq-box border rounded-lg bg-252525 overflow-hidden">
+                        <div class="faq-question w-full text-left px-4 md:px-6 py-4 font-semibold flex justify-between items-center hover:bg-2a2a2a transition text-sm md:text-base cursor-pointer">
                             Is it free to use?
                         </div>
                         <div class="faq-content px-4 md:px-6 text-sm md:text-base overflow-hidden transition-all duration-300 max-h-0">
                             Yes, Tikdown is 100% free to use. You can download as many videos as you want without any restrictions or hidden fees.
                         </div>
                     </div>
-                    <div data-aos="fade-up" class="faq-box border rounded-lg bg-[252525] overflow-hidden">
-                        <div class="faq-question w-full text-left px-4 md:px-6 py-4 font-semibold flex justify-between items-center hover:bg-[2a2a2a] transition text-sm md:text-base cursor-pointer">
+                    <div data-aos="fade-up" class="faq-box border rounded-lg bg-252525 overflow-hidden">
+                        <div class="faq-question w-full text-left px-4 md:px-6 py-4 font-semibold flex justify-between items-center hover:bg-2a2a2a transition text-sm md:text-base cursor-pointer">
                             Does it support Photo Slides?
                         </div>
                         <div class="faq-content px-4 md:px-6 text-sm md:text-base overflow-hidden transition-all duration-300 max-h-0">
                             Absolutely. Our system auto-detects if the link is a video or an image carousel. You can download individual images from the slide or the background music.
                         </div>
                     </div>
-                    <div data-aos="fade-up" class="faq-box border rounded-lg bg-[252525] overflow-hidden">
-                        <div class="faq-question w-full text-left px-4 md:px-6 py-4 font-semibold flex justify-between items-center hover:bg-[2a2a2a] transition text-sm md:text-base cursor-pointer">
+                    <div data-aos="fade-up" class="faq-box border rounded-lg bg-252525 overflow-hidden">
+                        <div class="faq-question w-full text-left px-4 md:px-6 py-4 font-semibold flex justify-between items-center hover:bg-2a2a2a transition text-sm md:text-base cursor-pointer">
                             Where are the videos saved?
                         </div>
                         <div class="faq-content px-4 md:px-6 text-sm md:text-base overflow-hidden transition-all duration-300 max-h-0">
@@ -93,7 +93,7 @@
             </section>
         </main>
 
-        <footer class="border-t border-gray-800 bg-[121212] py-8 text-center text-sm">
+        <footer class="border-t border-gray-800 bg-121212 py-8 text-center text-sm">
             <p class="footer-text">2026 Tikdown. All rights reserved.</p>
             <p class="footer-text mt-2">Created by Hanzcode</p>
         </footer>
@@ -101,4 +101,4 @@
 
     <script src="script.js"></script>
 </body>
-</html>
+                                                                            </html>
