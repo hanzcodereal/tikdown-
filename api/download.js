@@ -15,7 +15,7 @@ async function getCsrf() {
       'User-Agent': headers['User-Agent']
     }
   });
-  
+
   return {
     csrf: res.data.match(/name="csrf_token" value="([^"]+)"/)?.[1],
     cookie: res.headers['set-cookie']
@@ -26,68 +26,49 @@ async function getCsrf() {
 
 async function postUrl(url, csrf, cookie) {
   const formData = 'csrf_token=' + encodeURIComponent(csrf) + '&url=' + encodeURIComponent(url);
-  const res = await axios.post('https://savett.cc/en1/download', 
-    formData,
-    { 
-      headers: { 
-        ...headers, 
-        Cookie: cookie,
-        'Content-Length': String(formData.length)
-      } 
+  const res = await axios.post('https://savett.cc/en1/download', formData, {
+    headers: {
+      ...headers,
+      Cookie: cookie,
+      'Content-Length': String(formData.length)
     }
-  );
+  });
   return res.data;
 }
 
 function parseHtml(html) {
   const $ = cheerio.load(html);
-  
+
   const stats = [];
   $('#video-info .my-1 span').each(function(_, el) {
     const text = $(el).text().trim();
     if (text) stats.push(text);
   });
 
-  const username = $('#video-info h3').first().text().trim();
-  
-  const description = $('#video-info p.text-muted')
-    .filter(function(_, el) {
-      return !$(el).text().toLowerCase().includes('duration');
-    })
-    .first()
-    .text()
-    .trim() || null;
-
-  const postedAt = $('.text-muted small')
-    .first()
-    .text()
-    .trim() || null;
-
   const data = {
-    username: username || null,
-    description: description,
-    postedAt: postedAt,
-    views: stats[0] || '0',
-    likes: stats[1] || '0',
-    bookmarks: stats[2] || '0',
-    comments: stats[3] || '0',
-    shares: stats[4] || '0',
+    username: $('#video-info h3').first().text().trim() || null,
+    views: stats[0] || null,
+    likes: stats[1] || null,
+    bookmarks: stats[2] || null,
+    comments: stats[3] || null,
+    shares: stats[4] || null,
     duration: $('#video-info p.text-muted')
-      .filter(function(_, el) { return $(el).text().toLowerCase().includes('duration'); })
+      .filter(function(_, el) {
+        return $(el).text().toLowerCase().includes('duration');
+      })
       .first()
       .text()
       .replace(/Duration:/i, '')
       .trim() || null,
-    type: 'video',
-    downloads: { 
-      nowm: [], 
-      wm: [] 
+    type: null,
+    downloads: {
+      nowm: [],
+      wm: []
     },
     mp3: [],
     slides: [],
     thumbnail: null,
-    music: null,
-    music_author: null
+    description: null
   };
 
   const thumbnailImg = $('img[src*="tiktok"]').first().attr('src');
@@ -95,14 +76,15 @@ function parseHtml(html) {
     data.thumbnail = thumbnailImg;
   }
 
-  const musicInfo = $('.music-info').first();
-  if (musicInfo.length) {
-    const musicText = musicInfo.text().trim();
-    const musicParts = musicText.split(' - ');
-    if (musicParts.length === 2) {
-      data.music = musicParts[1]?.trim() || null;
-      data.music_author = musicParts[0]?.trim() || null;
-    }
+  const description = $('#video-info p.text-muted')
+    .filter(function(_, el) {
+      return !$(el).text().toLowerCase().includes('duration');
+    })
+    .first()
+    .text()
+    .trim();
+  if (description) {
+    data.description = description;
   }
 
   const slides = $('.carousel-item[data-data]');
@@ -112,13 +94,12 @@ function parseHtml(html) {
       try {
         const rawData = $(el).attr('data-data');
         if (!rawData) return;
-        
         const json = JSON.parse(rawData.replace(/&quot;/g, '"'));
         if (Array.isArray(json.URL)) {
           json.URL.forEach(function(url) {
-            data.slides.push({ 
-              index: data.slides.length + 1, 
-              url: url 
+            data.slides.push({
+              index: data.slides.length + 1,
+              url: url
             });
           });
         }
@@ -126,6 +107,8 @@ function parseHtml(html) {
     });
     return data;
   }
+
+  data.type = 'video';
 
   $('#formatselect option').each(function(_, el) {
     const label = $(el).text().toLowerCase();
@@ -180,23 +163,15 @@ module.exports = async function(req, res) {
     return;
   }
 
-  console.log('Method:', req.method);
-  console.log('Body:', req.body);
-  console.log('Query:', req.query);
-
-  var url = req.body?.url || req.query?.url;
+  const url = req.body?.url || req.query?.url;
 
   if (!url) {
-    console.log('URL not found in request');
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
       error: 'URL is required',
       message: 'Please provide a TikTok video URL'
     });
   }
-
-  url = url.trim();
-  console.log('Processing URL:', url);
 
   if (!url.includes('tiktok.com') && !url.includes('vt.tiktok')) {
     return res.status(400).json({
@@ -207,21 +182,15 @@ module.exports = async function(req, res) {
   }
 
   try {
-    console.log('Fetching CSRF token...');
     const { csrf, cookie } = await getCsrf();
-    
+
     if (!csrf) {
       throw new Error('Failed to get CSRF token');
     }
-    console.log('CSRF token obtained');
 
-    console.log('Posting URL to savett.cc...');
     const html = await postUrl(url, csrf, cookie);
-    console.log('Response received, parsing HTML...');
-    
     const result = parseHtml(html);
-    console.log('Parsed result:', JSON.stringify(result, null, 2));
-    
+
     if (!result.username && result.slides.length === 0) {
       throw new Error('Failed to parse content or video not found');
     }
@@ -236,18 +205,11 @@ module.exports = async function(req, res) {
       }
     };
 
-    console.log('Sending success response');
     res.status(200).json(response);
   } catch (error) {
-    console.error('Error:', error.message);
-    if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response data:', error.response.data);
-    }
-    
-    var statusCode = 500;
-    var errorMessage = 'Failed to download video';
-    
+    let statusCode = 500;
+    let errorMessage = 'Failed to download video';
+
     if (error.response?.status === 404) {
       statusCode = 404;
       errorMessage = 'Video not found or private';
@@ -259,7 +221,7 @@ module.exports = async function(req, res) {
       errorMessage = 'Request timeout';
     }
 
-    res.status(statusCode).json({ 
+    res.status(statusCode).json({
       success: false,
       error: errorMessage,
       details: error.message
