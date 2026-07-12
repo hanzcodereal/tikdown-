@@ -1,222 +1,69 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-const headers = {
-  'Content-Type': 'application/x-www-form-urlencoded',
-  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-  Origin: 'https://savett.cc',
-  Referer: 'https://savett.cc/en1/download',
-  'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36'
-};
+const tiktokDL = async (url, retries = 5) => {
+  if (!url?.trim()) return { success: false, result: 'URL kosong' };
 
-async function getCsrf() {
-  const res = await axios.get('https://savett.cc/en1/download', {
-    headers: {
-      'User-Agent': headers['User-Agent']
-    }
-  });
-
-  return {
-    csrf: res.data.match(/name="csrf_token" value="([^"]+)"/)?.[1],
-    cookie: res.headers['set-cookie']
-      ? res.headers['set-cookie'].map(function(v) { return v.split(';')[0]; }).join('; ')
-      : ''
-  };
-}
-
-async function postUrl(url, csrf, cookie) {
-  const formData = 'csrf_token=' + encodeURIComponent(csrf) + '&url=' + encodeURIComponent(url);
-  const res = await axios.post('https://savett.cc/en1/download', formData, {
-    headers: {
-      ...headers,
-      Cookie: cookie,
-      'Content-Length': String(formData.length)
-    }
-  });
-  return res.data;
-}
-
-function parseHtml(html) {
-  const $ = cheerio.load(html);
-
-  const stats = [];
-  $('#video-info .my-1 span').each(function(_, el) {
-    const text = $(el).text().trim();
-    if (text) stats.push(text);
-  });
-
-  const videoTitle = $('#video-info h3').first().text().trim() || null;
-  const username = $('#video-info h3 a').first().text().trim() || videoTitle;
-  const userId = $('#video-info h3 a').first().attr('href')?.split('/@')?.[1]?.split('/')?.[0] || null;
-
-  const data = {
-    username: username,
-    user_id: userId,
-    video_title: videoTitle,
-    views: stats[0] || null,
-    likes: stats[1] || null,
-    bookmarks: stats[2] || null,
-    comments: stats[3] || null,
-    shares: stats[4] || null,
-    duration: $('#video-info p.text-muted')
-      .filter(function(_, el) {
-        return $(el).text().toLowerCase().includes('duration');
-      })
-      .first()
-      .text()
-      .replace(/Duration:/i, '')
-      .trim() || null,
-    type: null,
-    downloads: {
-      nowm: [],
-      wm: []
-    },
-    mp3: [],
-    slides: [],
-    thumbnail: null,
-    thumbnail_hd: null,
-    description: null,
-    video_id: null,
-    created_at: null,
-    music_info: null,
-    hashtags: [],
-    mentions: [],
-    profile_picture: null,
-    followers: null,
-    following: null,
-    video_url: null
-  };
-
-  const thumbnailImg = $('img[src*="tiktok"]').first().attr('src');
-  if (thumbnailImg) {
-    data.thumbnail = thumbnailImg;
-    data.thumbnail_hd = thumbnailImg.replace(/thumbnail\.jpg/, 'thumb_HD.jpg');
-  }
-
-  const description = $('#video-info p.text-muted')
-    .filter(function(_, el) {
-      return !$(el).text().toLowerCase().includes('duration');
-    })
-    .first()
-    .text()
-    .trim();
-  if (description) {
-    data.description = description;
-    
-    const hashtagMatches = description.match(/#[a-zA-Z0-9_]+/g);
-    if (hashtagMatches) {
-      data.hashtags = hashtagMatches;
-    }
-    
-    const mentionMatches = description.match(/@[a-zA-Z0-9_]+/g);
-    if (mentionMatches) {
-      data.mentions = mentionMatches;
-    }
-  }
-
-  const videoIdMatch = html.match(/video_id["']?\s*[:=]\s*["']?(\d+)["']?/i);
-  if (videoIdMatch) {
-    data.video_id = videoIdMatch[1];
-  }
-
-  const createdAtMatch = html.match(/create_time["']?\s*[:=]\s*["']?([\d-]+ [\d:]+)["']?/i);
-  if (createdAtMatch) {
-    data.created_at = createdAtMatch[1];
-  }
-
-  const musicInfo = $('.music-info').first().text().trim() || 
-                    $('audio').parent().text().trim() || 
-                    $('#video-info p.text-muted').filter(function(_, el) {
-                      return $(el).text().toLowerCase().includes('music');
-                    }).first().text().trim();
-  if (musicInfo) {
-    data.music_info = musicInfo.replace(/Music:/i, '').trim();
-  }
-
-  const slides = $('.carousel-item[data-data]');
-  if (slides.length) {
-    data.type = 'photo';
-    slides.each(function(_, el) {
+  const req = async (opts) => {
+    for (let i = 0; i < retries; i++) {
       try {
-        const rawData = $(el).attr('data-data');
-        if (!rawData) return;
-        const json = JSON.parse(rawData.replace(/&quot;/g, '"'));
-        if (Array.isArray(json.URL)) {
-          json.URL.forEach(function(url) {
-            data.slides.push({
-              index: data.slides.length + 1,
-              url: url,
-              thumbnail: url.replace(/\.jpg$/, '_thumb.jpg')
-            });
-          });
-        }
-      } catch (e) {}
+        const r = await axios({
+          ...opts,
+          timeout: 7000,
+          maxRedirects: 5
+        });
+        return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+      } catch (e) {
+        if (i === retries - 1) throw e;
+        await new Promise(r => setTimeout(r, 2 ** i * 1000));
+      }
+    }
+  };
+
+  try {
+    const { status, data, statusCode, msg } = await req({
+      url: 'https://tikdownloader.cc/api/ajaxSearch',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36'
+      },
+      data: new URLSearchParams({ q: url }).toString()
     });
-    return data;
-  }
 
-  data.type = 'video';
+    if (statusCode === 326) return { success: false, result: msg || 'Link invalid' };
+    if (status !== 'ok' || !data) return { success: false, result: 'Gagal ambil data' };
 
-  $('#formatselect option').each(function(_, el) {
-    const label = $(el).text().toLowerCase();
-    const raw = $(el).attr('value');
-    if (!raw) return;
+    const html = data.replace(/&(?:amp|lt|gt|quot|#x27|#39|#x2F|nbsp|#xA0|#160|#(\d+)|#x([0-9a-fA-F]+));/gi, 
+      (_, dec, hex) => dec ? String.fromCharCode(dec) : hex ? String.fromCharCode(parseInt(hex, 16)) : 
+      { '&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&#x27;':"'",'&#39;':"'",'&#x2F;':'/','&nbsp;':' ','&#xA0;':' ','&#160;':' ' }[_] || _);
 
-    try {
-      const json = JSON.parse(raw.replace(/&quot;/g, '"'));
-      if (!json.URL) return;
+    const $ = s => (html.match(s) || [])[1]?.trim();
+    const isPhoto = html.includes('photo-list');
+    
+    const downloads = isPhoto 
+      ? [...html.matchAll(/href="([^"]+)"[^>]*btn-premium[^>]*>[\s\S]*?Download Image/g)].map((m, i) => ({ type: `Image ${i+1}`, url: m[1] }))
+          .concat((html.match(/href="([^"]+dl\.snapcdn\.app[^"]+)".*?Download MP3/) || []).slice(1).map(u => ({ type: 'MP3', url: u })))
+      : [...html.matchAll(/href="([^"]+)"[^>]*tik-button-dl[^>]*>([\s\S]*?)<\/a>/g)].map(m => ({ 
+          type: m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), 
+          url: m[1] 
+        }));
 
-      const urls = Array.isArray(json.URL) ? json.URL : [json.URL];
+    if (!downloads.length) return { success: false, result: 'Tidak ada link download' };
 
-      if (label.includes('mp4') && !label.includes('watermark')) {
-        data.downloads.nowm.push.apply(data.downloads.nowm, urls);
+    return {
+      success: true,
+      result: {
+        type: isPhoto ? 'photo' : 'video',
+        title: $(/<h3[^>]*>([^<]+)<\/h3>/),
+        thumbnail: $(/<img[^+]+src="([^"]+)"[^>]*(?:class="[^"]*image-tik[^"]*"|)/),
+        downloads
       }
-      if (label.includes('watermark') || label.includes('wm')) {
-        data.downloads.wm.push.apply(data.downloads.wm, urls);
-      }
-      if (label.includes('mp3') || label.includes('audio')) {
-        data.mp3.push.apply(data.mp3, urls);
-      }
-    } catch (e) {}
-  });
-
-  if (data.downloads.nowm.length === 0 && data.downloads.wm.length === 0) {
-    $('a[href*="tiktok"]').each(function(_, el) {
-      const href = $(el).attr('href');
-      if (href && href.includes('.mp4')) {
-        if (href.includes('watermark')) {
-          data.downloads.wm.push(href);
-        } else {
-          data.downloads.nowm.push(href);
-        }
-      }
-    });
+    };
+  } catch (e) {
+    return { success: false, result: e.message };
   }
-
-  const profileImg = $('img[alt*="avatar"]').first().attr('src') || 
-                     $('img[src*="avatar"]').first().attr('src');
-  if (profileImg) {
-    data.profile_picture = profileImg;
-  }
-
-  const followerCount = $('span:contains("Followers")').parent().text().match(/([\d.]+[KMB]?)/);
-  if (followerCount) {
-    data.followers = followerCount[1];
-  }
-
-  const followingCount = $('span:contains("Following")').parent().text().match(/([\d.]+[KMB]?)/);
-  if (followingCount) {
-    data.following = followingCount[1];
-  }
-
-  const videoUrl = $('video source').first().attr('src') || 
-                    $('video').first().attr('src');
-  if (videoUrl) {
-    data.video_url = videoUrl;
-  }
-
-  return data;
-}
+};
 
 module.exports = async function(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -251,44 +98,66 @@ module.exports = async function(req, res) {
   }
 
   try {
-    const { csrf, cookie } = await getCsrf();
+    const result = await tiktokDL(url);
 
-    if (!csrf) {
-      throw new Error('Failed to get CSRF token');
-    }
-
-    const html = await postUrl(url, csrf, cookie);
-    const result = parseHtml(html);
-
-    if (!result.username && result.slides.length === 0) {
-      throw new Error('Failed to parse content or video not found');
+    if (!result.success) {
+      throw new Error(result.result || 'Failed to download video');
     }
 
     const response = {
       success: true,
-      data: result,
+      data: {
+        username: result.result.title || null,
+        video_title: result.result.title || null,
+        type: result.result.type,
+        thumbnail: result.result.thumbnail || null,
+        downloads: {
+          nowm: [],
+          wm: [],
+          mp3: []
+        }
+      },
       metadata: {
         platform: 'TikTok',
         scraped_at: new Date().toISOString(),
-        source: 'savett.cc',
+        source: 'tikdownloader.cc',
         video_url: url
       }
     };
+
+    if (result.result.downloads) {
+      result.result.downloads.forEach(item => {
+        if (item.type && item.type.toLowerCase().includes('no watermark')) {
+          response.data.downloads.nowm.push(item.url);
+        } else if (item.type && (item.type.toLowerCase().includes('watermark') || item.type.toLowerCase().includes('wm'))) {
+          response.data.downloads.wm.push(item.url);
+        } else if (item.type && (item.type.toLowerCase().includes('mp3') || item.type.toLowerCase().includes('audio'))) {
+          response.data.downloads.mp3.push(item.url);
+        } else if (item.type && item.type.toLowerCase().includes('image')) {
+          if (!response.data.slides) response.data.slides = [];
+          response.data.slides.push({
+            index: response.data.slides.length + 1,
+            url: item.url
+          });
+        }
+      });
+    }
+
+    if (response.data.slides && response.data.slides.length > 0) {
+      response.data.type = 'photo';
+    }
 
     res.status(200).json(response);
   } catch (error) {
     let statusCode = 500;
     let errorMessage = 'Failed to download video';
 
-    if (error.response?.status === 404) {
+    if (error.message.includes('invalid')) {
       statusCode = 404;
       errorMessage = 'Video not found or private';
-    } else if (error.response?.status === 429) {
+    } else if (error.message.includes('rate limit')) {
       statusCode = 429;
       errorMessage = 'Rate limit exceeded. Please try again later';
-    } else if (error.code === 'ECONNABORTED') {
-      statusCode = 504;
-      errorMessage = 'Request timeout';
     }
 
     res.status(statusCode).json({
